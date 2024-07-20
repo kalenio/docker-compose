@@ -1,0 +1,198 @@
+services:
+  ###### ----- Network ----- ######
+
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    security_opt:
+      - no-new-privileges:true
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      # See https://github.com/qdm12/gluetun-wiki/tree/main/setup#setup
+      # For mullvad specifically: https://github.com/qdm12/gluetun-wiki/blob/main/setup/providers/mullvad.md
+      - VPN_SERVICE_PROVIDER=mullvad
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=PRIVATE_KEY_HERE
+      - WIREGUARD_ADDRESSES=10.68.243.38/32
+      - OWNED_ONLY=yes # If the vpn server is owned by mullvad. default is no, which includes all servers
+      - TZ=Etc/GMT+7 # Arizona time
+      # Server list updater, see https://github.com/qdm12/gluetun-wiki/blob/main/setup/servers.md#update-the-vpn-servers-list
+      - UPDATER_PERIOD=24h
+    volumes:
+      - gluetun:/gluetun
+    ports:
+      - 8085:8085 # qbitorrent web ui
+      - 6881:6881 # qbittorrent incoming connections port (downloads/uploads)
+      - 6881:6881/udp # qbittorrent UDP incoming connections port
+      - 8080:8080 # sabnzbd web ui. check sabnzbd.ini if running into issues. may be 8085 by default?
+      - 563:563/tcp # sabnzbd SSL News Transfer Protocol port
+      - 119:119/tcp # sabnzbd News Transfer Protocol port
+      - 8989:8989 # sonarr web ui
+      - 7878:7878 # radarr web ui
+      - 8686:8686 # lidarr web ui
+      - 8787:8787 # readarr web ui
+      - 9696:9696 # prowlarr web ui
+      - 6767:6767 # bazarr web ui
+
+      - 8191:8191 # flaresolverr
+    restart: unless-stopped
+
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_HTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+      - TZ=Etc/GMT+7 # Arizona time
+    # network_mode: "host"
+    restart: unless-stopped
+
+  qbittorrent: # https://docs.linuxserver.io/images/docker-qbittorrent/
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+      - WEBUI_PORT=8085
+    volumes:
+      - qbittorrent-config:/config
+      - /mnt/media_nfs/downloads/torrents:/media_nfs/downloads/torrents:rw
+    restart: unless-stopped
+
+  sabnzbd: # https://docs.linuxserver.io/images/docker-sabnzbd/#usage
+    image: lscr.io/linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+    volumes:
+      - sabnzbd-config:/config
+      - /mnt/media_nfs/downloads/usenet:/media_nfs/downloads/usenet:rw
+    restart: unless-stopped
+
+  ###### ----- Media related ----- ######
+
+  sonarr: # https://docs.linuxserver.io/images/docker-sonarr/?h=sonarr
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+    volumes:
+      - sonarr-config:/config
+      - /mnt/media_nfs/downloads:/media_nfs/downloads
+      - /mnt/media_nfs/media_library/series:/media_nfs/media_library/series
+    restart: unless-stopped
+
+  radarr: # https://docs.linuxserver.io/images/docker-radarr/#media-folders
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+    volumes:
+      - radarr-config:/config
+      - /mnt/media_nfs/downloads:/media_nfs/downloads
+      - /mnt/media_nfs/media_library/movies:/media_nfs/media_library/movies
+    restart: unless-stopped
+
+  lidarr: # https://docs.linuxserver.io/images/docker-lidarr/#media-folders
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+    volumes:
+      - lidarr-config:/config
+      - /mnt/media_nfs/downloads:/media_nfs/downloads
+      - /mnt/media_nfs/media_library/music:/media_nfs/media_library/music
+    restart: unless-stopped
+
+  readarr:
+    image: lscr.io/linuxserver/readarr:develop
+    container_name: readarr
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+    volumes:
+      - readarr-config:/config
+      - /mnt/media_nfs/downloads:/media_nfs/downloads
+      - /mnt/media_nfs/media_library/books:/media_nfs/media_library/books
+    restart: unless-stopped
+
+  prowlarr: # https://docs.linuxserver.io/images/docker-prowlarr/
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+    volumes:
+      - prowlar-config:/config
+      - /mnt/media_nfs:/media_nfs
+    restart: unless-stopped
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    security_opt:
+      - no-new-privileges:true
+    network_mode: service:gluetun
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 #test
+    volumes:
+      - bazarr-config:/config
+      - /mnt/media_nfs/media_library/movies:/media_nfs/media_library/movies
+      - /mnt/media_nfs/media_library/series:/media_nfs/media_library/series
+    restart: unless-stopped
+
+volumes:
+  gluetun:
+  qbittorrent-config:
+  sabnzbd-config:
+  sonarr-config:
+  radarr-config:
+  lidarr-config:
+  readarr-config:
+  prowlar-config:
+  bazarr-config:

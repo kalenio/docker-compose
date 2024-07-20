@@ -1,0 +1,29 @@
+version: '3.3'
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest # portainer community edition
+    container_name: portainer
+    security_opt:
+      - no-new-privileges:true
+    restart: always
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+
+  homeassistant:
+    image: homeassistant/home-assistant
+    container_name: homeassistant
+    security_opt:
+      - no-new-privileges:true
+    restart: always
+    ports:
+      - "8123:8123"
+    volumes:
+      - homeassistant-config:/config
+
+volumes:
+  portainer-data:
+  homeassistant-config:

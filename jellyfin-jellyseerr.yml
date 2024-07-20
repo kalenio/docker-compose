@@ -1,0 +1,53 @@
+---
+services:
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest # OR jellyfin/jellyfin (official)
+    container_name: jellyfin
+    security_opt:
+      - no-new-privileges:true
+    runtime: nvidia
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - TZ=Etc/GMT+7 # Arizona time
+      - NVIDIA_VISIBLE_DEVICES=all
+    devices:
+      - /dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools
+      - /dev/nvidia-modeset
+      - /dev/nvidiactl
+      - /dev/nvidia0
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - /mnt/media_nfs/media_library:/media_library :ro
+      - /home/jellyfin-user/jellyfin-plugins/dist:/usr/share/jellyfin/web:rw # optional, for intro-skipper plugin (https://github.com/306bobby-android/intro-skipper)
+    ports:
+      - 8096:8096/tcp # http webUI
+      - 8920:8920/tcp # https webUI
+    restart: unless-stopped
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    security_opt:
+      - no-new-privileges:true
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=3000
+      - PGID=3000
+      - LOG_LEVEL=debug
+      - TZ=Etc/GMT+7 # Arizona time
+    volumes:
+      - jellyseerr-config:/app/config
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+
+volumes:
+  jellyfin-config:
+  jellyfin-cache:
+  jellyseerr-config:
+

@@ -1,0 +1,23 @@
+services:
+    nicotine-plus: # https://github.com/fletchto99/nicotine-plus-docker
+        image: ghcr.io/fletchto99/nicotine-plus-docker:latest
+        container_name: nicotine-plus
+        security_opt:
+            - no-new-privileges:true
+            #- seccomp=unconfined #optional? "many modern gui apps need this to function as syscalls are unkown to Docker"
+        environment:
+            - PUID=3000
+            - PGID=3000
+            - TZ=Etc/GMT+7 # Arizona time
+            - PASSWORD=EXAMPLE_PASSWORD # optional password for web ui
+        volumes:
+            - nicotine-config:/config
+            - /mnt/media_nfs/downloads/soulseek/:/soulseek
+            - /mnt/media_nfs/media_library/music:/soulseek/share/music:ro # soulseek share folder, read only
+            - /mnt/media_nfs/media_library/books:/soulseek/share/books:ro # soulseek share folder, read only
+        ports:
+            - 6080:6080 # nicotine web ui
+            - 2234-2239:2234-2239 # nicotine p2p ports
+        restart: unless-stopped
+volumes:
+    nicotine-config:

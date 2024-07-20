@@ -1,0 +1,24 @@
+# this docker compose file is meant to be used with a custom build of caddy from a Dockerfile.
+
+version: "3.3"
+services:
+  caddy:
+    build: .
+    security_opt:
+      - label:disable
+      - no-new-privileges:true
+    restart: unless-stopped
+    environment:
+      - PUID=3000
+      - PGID=3000
+    volumes:
+      - /home/caddy2-user/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - 80:80
+      - 443:443
+
+volumes:
+  caddy-data:
+  caddy-config:
